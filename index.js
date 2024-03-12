@@ -1,50 +1,34 @@
 const express = require('express');
-const cluster = require('cluster');
-const http = require('http');
+const { spawn } = require('child_process');
 
-// Check the number of available CPU.
-const numCPUs = 2;  // For demonstration, normally you would use require('os').cpus().length;
-var hash = {};
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// For Master process
-if (cluster.isMaster) {
-    console.log('Master ${process.pid} is running');
+function callPythonScript(callback) {
+  const pythonProcess = spawn('python', ['./test.py']);  // Assuming the Python script is named test.py
 
-    // Fork workers.
-    for (let i = 0; i < numCPUs; i++) {
-        const worker = cluster.fork();
+  let dataString = '';
 
-        // Assign URL based on worker id
-        // Assuming you want to alternate between two URLs
-        if (i % 2 === 0) {
-            worker.send({ url: 'https://final-project-sigma-ochre.vercel.app/' });
-        } else {
-            worker.send({ url: 'https://final-project-1mis.vercel.app/' });
-        }
-    }
+  pythonProcess.stdout.on('data', (data) => {
+    dataString += data.toString();
+  });
 
-    // This event fires when a worker dies
-    cluster.on('exit', (worker, code, signal) => {
-        console.log('worker ${worker.process.pid} died');
-    });
+  pythonProcess.stderr.on('data', (data) => {
+    console.error(`stderr: ${data}`);
+  });
+
+  pythonProcess.on('close', (code) => {
+    console.log(`child process exited with code ${code}`);
+    callback(dataString);
+  });
 }
-// For Worker
-else {
-    process.on('message', (msg) => {
-        hash[process.pid] = msg.url;
-    });
 
-    app.listen(PORT, () => {
-        console.log('Worker ${process.pid} started');
-    });
+app.get('/', (req, res) => {
+  callPythonScript((result) => {
+    res.send(`Output: ${result}`);
+  });
+});
 
-    // API endpoint to send public key
-    
-
-    app.get('/', (req, res) => {
-        res.writeHead(302, { Location: hash[process.pid] });
-        res.end();
-    });
-}
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
