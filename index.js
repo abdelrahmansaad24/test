@@ -4,7 +4,7 @@ const { py, python } = require('pythonia')
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const np;
+let np = null ;
 function callPythonScript(callback) {
   const pythonProcess = spawn('python', ['./test.py']);  // Assuming the Python script is named test.py
 
