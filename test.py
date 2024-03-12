@@ -1,5 +1,9 @@
-x = 0;
+x = 0
+
 def plus():
-  print(x)
-  x++
-  
+    global x  # Declare x as global to modify it
+    print(x)
+    x += 1  # Increment x
+
+if __name__ == "__main__":
+    plus()
