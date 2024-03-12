@@ -1,9 +1,10 @@
 const express = require('express');
 const { spawn } = require('child_process');
+const { py, python } = require('pythonia')
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
+const np = await python("./test.py")
 function callPythonScript(callback) {
   const pythonProcess = spawn('python', ['./test.py']);  // Assuming the Python script is named test.py
 
@@ -23,10 +24,8 @@ function callPythonScript(callback) {
   });
 }
 
-app.get('/', (req, res) => {
-  callPythonScript((result) => {
-    res.send(`Output: ${result}`);
-  });
+app.get('/', async (req, res) => {
+  await np.plus()
 });
 
 app.listen(PORT, () => {
