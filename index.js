@@ -25,7 +25,7 @@ function callPythonScript(callback) {
 }
 
 app.get('/', async (req, res) => {
-  await np.plus()
+  console.log(await np.plus())
 });
 
 app.listen(PORT, () => {
