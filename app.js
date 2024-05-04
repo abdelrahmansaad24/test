@@ -9,7 +9,7 @@ app.use(express.json());
 
 const openai = new OpenAI({
 	apiKey: "anything",
-	baseURL: "https://chatbot-last.onrender.com/v1",
+	baseURL: "https://chatbot-last-1.onrender.com/v1",
 });
 async function main() {
   const chatCompletion = await openai.chat.completions.create({
