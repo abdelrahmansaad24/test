@@ -1,58 +1,101 @@
-const OpenAI = require('openai');
 const express = require("express");
-const PORT = process.env.PORT || 8800 ;
+const dotenv = require("dotenv");
+const mongoose = require("mongoose");
+const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+const mongoSanitize = require("express-mongo-sanitize");
+const xss = require("xss-clean");
+const authRoute = require("./routes/auth.js");
+const usersRoute = require("./routes/users.js");
+const hotelsRoute = require("./routes/hotels.js");
+const roomsRoute = require("./routes/rooms.js");
+const onboardSellerRoute = require("./routes/onboardSeller.js");
+const reviewssRoute = require("./routes/reviews.js");
+const paymentRoute = require("./routes/payment.js");
+const ownerRoute = require("./routes/owner.js");
+const bookingRoute = require("./routes/booking.js");
+const cookieParser = require("cookie-parser");
+const cors = require("cors");
+const globalErrorHandler = require("./controllers/error.js");
+const castQuery = require("./utils/castQuery.js");
+const onboardSeller = require("./controllers/onboardSeller.js");
+
+const PORT = process.env.PORT || 8800;
 
 const app = express();
+dotenv.config();
+const origin = process.env.ORIGIN;
+const redis = require("./utils/redis.js");
 
-app.use(express.json());
-
-
-const openai = new OpenAI({
-	apiKey: "anything",
-	baseURL: "https://chatbot-last-1.onrender.com/v1",
-});
-async function main() {
-  const chatCompletion = await openai.chat.completions.create({
-  messages: [{ role: 'user', content: "Translate the following English text to French: 'Hello, how are you?''" }],
-  model: 'gpt-3.5-turbo',
-  });
-
-  console.log(chatCompletion.choices[0].message.content);
-}
-
-app.post('/translate', async (req, res) => {
+const connect = async () => {
   try {
-    const { text ,} = req.body;
-    console.log(text);
-    const chatCompletion = await openai.chat.completions.create({
-      messages: [{ role: 'user', content: "Translate the following to english: return the source lang then the translation example كيف حالك response:  {language : arabic ,message : how are you}" },
-      {role : "assistant", content: "message: كيف حالك , language : arabic"}, {role: "user" ,content : text}],
-      model: 'gpt-3.5-turbo',
-    });
-    res.json(chatCompletion.choices[0].message.content);
+    await mongoose.connect(process.env.MONGO);
+    console.log("Connected to mongoDB.");
   } catch (error) {
-    console.error(error);
-    res.status(500).send('An error occurred while translating the message.');
+    throw error;
   }
-});
+};
 
-app.post('/chat', async (req, res) => {
-  try {
-    const { text , dialoge} = req.body;
-    console.log(text);
-    const chatCompletion = await openai.chat.completions.create({
-      messages: Object.assign({}, dialoge, {role: "user" ,content : text}),
-      model: 'gpt-3.5-turbo',
-    });
-    res.json(chatCompletion.choices[0].message.content);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send('An error occurred while translating the message.');
-  }
+mongoose.connection.on("disconnected", () => {
+  console.log("mongoDB disconnected!");
 });
+// await client.disconnect();
+const corsOptions = {
+  origin: origin,
+  credentials: true,
+};
+
+// app.all("*", function (req, res, next) {
+//   const origin = corsOptions.origin.includes(req.header("origin").toLowerCase())
+//     ? req.headers.origin
+//     : corsOptions.default;
+//   res.header("Access-Control-Allow-Origin", origin);
+//   res.header(
+//     "Access-Control-Allow-Headers",
+//     "Origin, X-Requested-With, Content-Type, Accept"
+//   );
+//   res.header("Access-Control-Allow-Credentials", true);
+//   next();
+// });
+
+// middleware to set headers security
+app.use(helmet());
+
+// middleware to limit too many requests from same api
+// const limiter = rateLimit({
+//   max: 100,
+//   window: 60 * 60 * 1000,
+//   message: "Too Many requests from this Ip, Please Try agian in an hour",
+// });
+
+// app.use("/api", limiter);
+
+//middlewares
+app.use(cors());
+app.use(cookieParser());
+app.use(express.json({ limit: "10kb" }));
+
+// Data Sanitization against nosql query injection
+app.use(mongoSanitize());
+
+// Data Sanitization against XSS attach
+app.use(xss());
+
+app.use(castQuery);
+
+app.use("/api/auth", authRoute);
+app.use("/api/users", usersRoute);
+app.use("/api/hotels", hotelsRoute);
+app.use("/api/rooms", roomsRoute);
+app.use("/api/onboardSeller", onboardSellerRoute);
+app.use("/api/reviews", reviewssRoute);
+app.use("/api/payment", paymentRoute);
+app.use("/api/owner", ownerRoute);
+app.use("/api/booking", bookingRoute);
+
+app.use(globalErrorHandler);
 
 app.listen(PORT, () => {
-  console.log("Connected to chatbot server.");
+  connect();
+  console.log("Connected to backend.");
 });
-
-//main();
